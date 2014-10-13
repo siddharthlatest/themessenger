@@ -1,14 +1,121 @@
-<script src="https://cdn.appbase.io/2.0/appbase.js"></script>
-<script src="oauth.min.js"></script>
-<script src="jquery-2.1.1.min.js"></script>
-
+<head>
+<link href="css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+<div class="container" style="margin-top:50px;">
+	<div class="col-md-12" style="text-align:center;"> 
+		<h1><span style="color:#aaa">the</span><b><span style="color:#999">messenger</span></b></h1>
+		<h4 style="color:#555;">The simplest chat messenger</h4>
+	</div>
+</div>
+<div id="initial" class="container" style="margin-top:80px;display:block;">
+	<div class="col-lg-8 col-lg-offset-2">
+    <div class="input-group">
+      <input id="email" type="text" class="form-control" placeholder="enter your e-mail address">
+      <span class="input-group-btn">
+        <button id="go" class="btn btn-default" type="button">Go!</button>
+      </span>
+    </div><!-- /input-group -->
+  </div><!-- /.col-lg-6 -->
+</div>
+<div id="final" class="container" style="margin-top:80px;display:none;">
+	<div class="row">
+		<span style="font-size:20px;">Welcome <span id="email-from"></span> to your chatroom!</span>
+		<button id="logout" class="pull-right btn btn-danger">Logout</button>
+	</div>
+	<div class="row" style="margin-top:20px;">
+		<div class="col-xs-3">
+			<div class="col-xs-12">
+			    <div class="input-group">
+			      <input id="useremail" type="text" class="form-control" placeholder="Invite a user">
+			      <span class="input-group-btn">
+			        <button id="userinvite" class="btn btn-default" type="button">Go!</button>
+			      </span>
+			    </div><!-- /input-group -->
+			  </div><!-- /.col-lg-6 -->
+		</div>
+		<div class="col-xs-9">
+			<div id="messagesDiv" style="border: 1px solid #aaa;">
+			</div>
+			<div style="margin-top:20px;">
+				<input type='text' id='nameInput' placeholder='Name'>
+	    		<input type='text' id='messageInput' placeholder='Message'>
+	    	</div>
+		</div>
+	</div>
+</div>
+<script src="js/appbase.js"></script>
+<script src="js/oauth.min.js"></script>
+<script src="js/jquery-2.1.1.min.js"></script>
 <script>
-	$(document).load(function() {
-		Appbase.credentials("aphrodite", "4d8d0072580912343cd74a09015cd217");
-		OAuth.initialize('Adm8c90rdzinsfnVQSOCH4U2uWc')
-		OAuth.popup('github').done(function(result) {
-	    	console.log(result)
-	    	// do some stuff with result
-		})
+	function setUser(email_val) {
+		$("#initial").css("display", "none");
+		$("#final").css("display", "block");
+		$("#email-from").html(email_val);
+		window.location.href = window.location.href+"#"+email_val;
+	}
+	$("#go").on("click", function(e) {
+		console.log($("#email").val());
+		setUser($("#email").val());
+		localStorage.setItem("email", $("#email").val());
+	})
+	$("#userinvite").on("click", function(e) {
+		console.log($("#useremail").val());
+		// call the rest api.
+		$.ajax({
+		  type: "POST",
+		  url: "http://10.15.2.47:8080/email",
+		  data: JSON.stringify({"body":"hey, let's chat at 127.0.0.1/#siddharth@appbase.io",
+		  "toaddress":"themessenger@mailinator.com",
+		  "subject":"You are invited to themessenger"}),
+		  success: function(data) {
+		  	console.log("data");
+		  }
+		});
+		$.post()
+	})
+	$("#logout").on("click", function(e) {
+		localStorage.setItem("email","");
+		$("#initial").css("display","block");
+		$("#final").css("display","none");
+		url = window.location.href;
+		url = url.substring(0,url.indexOf("#"));
+		window.location.href = url;
+	})
+	$(document).ready(function() {
+		Appbase.credentials("themessenger", "499314e8f0fef5652bab2466fba74a50");
+		var emailfield = "";
+		var currentchatroom = "";
+		if (localStorage.getItem("email")) {
+			console.log("here");
+			emailfield = localStorage.getItem("email");
+			setUser(emailfield);
+		}
+		var vref = Appbase.ns("chat").v(emailfield);
+		console.log("created vertex emailfield");
+		// listen on existing messages.
+    	vref.on('edge_added', function(error, edgeRef) {
+		    edgeRef.on('properties', function(error, messageRef, pSnapshot) {
+		        var message = pSnapshot.properties();
+		        displayChatMessage(message.name, message.text);
+		        edgeRef.off();
+		    })
+		});
+		// add new messages
+    	$('#messageInput').keypress(function (e) {
+            if (e.keyCode == 13) {
+                var name = $('#nameInput').val();
+                var text = $('#messageInput').val();
+                var myMessageRef = Appbase.ns("message").v(Appbase.uuid());
+                myMessageRef.setData({"name": name, "text": text});
+                vref.setEdge(Appbase.uuid(), myMessageRef);
+                $('#messageInput').val('');
+            }
+        });
+        function displayChatMessage(name, text) {
+            $('<div/>').text(text).prepend($('<em/>').text(name + ': ')).appendTo($('#messagesDiv'));
+            $('#messagesDiv')[0].scrollTop = $('#messagesDiv ')[0].scrollHeight;
+        }
 	})
 </script>
+</body>
